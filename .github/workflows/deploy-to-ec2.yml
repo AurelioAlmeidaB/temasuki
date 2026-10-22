@@ -1,9 +1,14 @@
-name: Push-to-EC2
+name: Deploy to EC2
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -11,16 +16,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the files
-        uses: actions/checkout@v4
-
-      - name: Copy files with SSH
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "./"
-          REMOTE_HOST: "ec2-100-53-185-114.compute-1.amazonaws.com"
-          REMOTE_USER: "ubuntu"
-          TARGET: "/var/www/temasuki/"
-          EXCLUDE: "/vendor/, /node_modules/, .env, /storage/logs/, /storage/framework/, /database/database.sqlite, /public/img/pratos/"
+      - name: Atualizar código e aplicação no servidor
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ec2-54-163-192-149.compute-1.amazonaws.com
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/temasuki
+            git fetch --quiet origin main
+            git reset --quiet --hard origin/main
+            bash deploy.sh
